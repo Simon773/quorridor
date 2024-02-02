@@ -8,3 +8,8 @@ self.pouvoir type_mur cost
 
 cases ou le joueur peut aller -1
 cases ou les murs peuvent être posés -2
+
+
+
+A FAIRE:
+prendre en compte le temps de rechangement des unites (faire une fonction dans le model)
