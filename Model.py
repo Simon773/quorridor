@@ -14,7 +14,7 @@ matriceVide = np.zeros((tailleMap*2-1, tailleMap*2-1))
 # Argent de début pour acheter murs
 nbrPointAchatMur = 15
 #couple type de mur et cout de ce mur
-murEtCout = {0:2,1:2,3:2,4:2}
+murEtCout = {0:1,1:2,2:3,3:3,4:2}
 
 
 #temps de rechargements qui peuvent être modifiés si besoin
@@ -28,8 +28,9 @@ temps_rechargement_jumper =4
 class QuorridorModel:
     def __init__(self):
         self.taille = tailleMap * 2 - 1
-        self.plateau =  [[0 if (i % 2 == 0 and j % 2 == 0) else -1 for j in range(self.taille)] for i in range(self.taille)]
+        self.plateau =  [[-1 if (i % 2 == 0 and j % 2 == 0) else -2 for j in range(self.taille)] for i in range(self.taille)]
         self.murs = []
+        self.positions_murs=dict()
         self.joueur= UniteSapeur(0,0,2) #on initialise pour les 2 joueurs à 2 sapeurs mais dès le début ce choix sera modifié
         self.adversaire = UniteSapeur(0,0,2)
 
@@ -63,6 +64,10 @@ class QuorridorModel:
         for player in players:
             self.plateau[player.pos_x][player.pos_y]= player.type
 
+    def boucle_jeu(self):
+        pass
+
+
 
 
     def init_pos(self): #initialisation des 2 joueurs avec leurs positions
@@ -80,46 +85,29 @@ class QuorridorModel:
         #liste des positions où l'on peut placer des murs afin de couvrir 2 cases de joueurs (dans le cas inverse cela couvre seulement une case de joueur)
         return [(i, j) for i in range(tailleMap) for j in range(tailleMap) if (i % 2 == 1) != (j % 2 == 1)]
 
-    def move_player(self, player, direction):
-        print(player)
+    def move_player(self, player,x,y):
         if player == self.joueur:
             self.plateau[self.joueur.pos_x][self.joueur.pos_y] = 0
-            if direction == 0:
-                self.joueur.pos_x -= 2
-            elif direction == 2:
-                self.joueur.pos_x += 2
-            elif direction == 3:
-                self.joueur.pos_y -= 2
-            elif direction == 1:
-                self.joueur.pos_y += 2
-            print(self.joueur.pos_x, self.joueur.pos_y)
+            self.joueur.pos_x,self.joueur.pos_y=x,y
             self.plateau[self.joueur.pos_x][self.joueur.pos_y] = self.joueur.type
         else:
             self.plateau[self.adversaire.pos_x][self.adversaire.pos_y] = 0
-            if direction == 0:
-                self.adversaire.pos_x -= 2
-            elif direction == 2:
-                self.adversaire.pos_x += 2
-            elif direction == 3:
-                self.adversaire.pos_y -= 2
-            elif direction == 1:
-                self.adversaire.pos_y += 2
-            print(self.adversaire.pos_x,self.adversaire.pos_y)
+            self.adversaire.pos_x,self.adversaire.pos_y=x,y
             self.plateau[self.adversaire.pos_x][self.adversaire.pos_y] = self.adversaire.type
         return self.plateau
 
 
 
     def placer_mur(self, player,type_mur, x, y, orientation):
-        if type_mur==1:
+        if type_mur==0:
             new_wall = MurClassique(x, y, orientation)
-        elif type_mur==2:
+        elif type_mur==1:
             new_wall = MurIncassable(x,y,orientation)
-        elif type_mur == 3:
+        elif type_mur == 2:
             new_wall = GrandMur(x,y,orientation)
         elif type_mur == 4:
-            new_wall = MurReutilisable(x,y,orientation,player)
-        elif type_mur == 5:
+            new_wall = MurTemporaire(x,y,orientation,player)
+        elif type_mur == 3:
             new_wall = MurAvecPorte(x,y,orientation,player)
 
 
@@ -139,39 +127,17 @@ class QuorridorModel:
                 self.plateau[ x ][ y - i ] = new_wall.pouvoir
 
         return self.plateau
-    def supprimer_mur(self,x,y,axe):
-        if axe == 'v':
-            for mur in self.murs:
-                if (x-1,y) ==(mur.x,mur.y) or (x+1,y)==(mur.x,mur.y):
-                    self.murs.remove(mur)
-                    for i in range(-1,2):
-                        self.plateau[x+i][y]=-1
-                elif ((x-2, y) == (mur.x, mur.y) or (x+2, y) == (mur.x, mur.y)) and mur.longueur == 5: #cas pour le mur de longueur 5
-                    self.murs.remove(mur)
-                    for i in range(-2, 3):
-                        self.plateau[x + i][y] = -1
-                else:
-                    return -1 #il n'y a pas de mur en face du joueur
-                return self.plateau
-        elif axe == 'h':
-            for mur in murs:
-                if (x,y-1) ==(mur.x,mur.y) or (x,y+1)==(mur.x,mur.y):
-                    self.murs.remove(mur)
-                    for i in range(-1,2):
-                        self.plateau[x][y+i]=-1
-                elif ((x, y-2) == (mur.x, mur.y) or (x+2, y) == (mur.x, mur.y)) and mur.longueur == 5: #cas pour le mur de longueur 5
-                    self.murs.remove(mur)
-                    for i in range(-2, 3):
-                        self.plateau[x + i][y] = -1
-                else:
-                    return -1
-                return self.plateau
+    def supprimer_mur(self,x,y):
+        if (x,y) in self.positions_murs.keys():
+            mur = self.positions_murs[(x,y)]
+            self.murs.remove(mur)
+
 
 
     def recursion(self,pos,player):
         visite =set()
         visite.add((pos[0],pos[1]))
-        return self.chemin_restant(pos,visite,us)
+        return self.chemin_restant(pos,visite,player)
     def chemin_restant (self,pos,visite,player):
         if player== self.joueur:
             arrivee = 0
@@ -182,20 +148,64 @@ class QuorridorModel:
         voisin = set()
         for i, j in [(0,2),(2,0),(-2,0),(0,-2)] :
             if 0<= pos[0]+i < self.taille and 0<= j+pos[1] < self.taille :
-                if (i !=0 and self.plateau[int(pos[0]+(i/2))][pos[1]] == -1) or (j !=0 and plateau[pos[0]][int(pos[1]+(j/2))] == -1):
+                if (i !=0 and self.plateau[int(pos[0]+(i/2))][pos[1]] == -1) or (j !=0 and self.plateau[pos[0]][int(pos[1]+(j/2))] == -1):
                     voisin.add((pos[0]+i, j+pos[1]))
         disponible = voisin - visite
-        if len(dispo)==0:
+        if len(disponible)==0:
             return
         for pos2 in disponible :
                 visite.add(pos2)
                 reponse = self.chemin_restant(pos2,visite,player)
                 if reponse:
                     return True
-                visite.remove(new_pos)
+                visite.remove(pos2)
 
     def voisin(self,x,y):
         return[(x-1,y),(x+1,y),(x,y-1),(x,y+1)] #renvoie toutes les postions voisines en excluant les cases diagonales en coin
+
+    def parametrer_set_murs(self):
+        for mur in self.murs:
+            for position in mur.positions:
+                self.positions_murs[position]=mur
+        #print(self.positions_murs)
+
+    def deplacement_legal(self,player,x,y):
+        if x<player.pos_x and y==player.pos_y:
+            direction=0
+        elif x>player.pos_x and y==player.pos_y:
+            direction=2
+        elif y<player.pos_y and x==player.pos_x:
+            direction=3
+        elif y>player.pos_y and x==player.pos_x:
+            direction=1
+        else:
+            raise ValueError("il n'y a pas de changement de position du joueur ou changement en diagonale")
+        if direction ==0:
+            if player.pos_x ==0:
+                return False
+            if (player.pos_x-1,player.pos_y) in self.positions_murs.keys(): #si il y a un mur devant le joueur, mouvement impossible
+                return False
+        elif direction ==1:
+            if player.pos_y ==self.taille-1:
+                return False
+            if (player.pos_x,player.pos_y+1) in self.positions_murs.keys(): #si il y a un mur devant le joueur, mouvment impossible
+                return False
+        elif direction ==2:
+            if player.pos_x ==self.taille-1:
+                return False
+            if (player.pos_x+1,player.pos_y) in self.positions_murs.keys(): #si il y a un mur devant le joueur, mouvment impossible
+                return False
+        elif direction ==3:
+            if player.pos_y ==0:
+                return False
+            if (player.pos_x,player.pos_y-1) in self.positions_murs.keys(): #si il y a un mur devant le joueur, mouvment impossible
+                return False
+        else:
+            print("erreur dans le numéro de la direction")
+            raise ValueError
+        return True
+
+
 
     def get_state(self):
         # Retourne l'état actuel du jeu
@@ -206,7 +216,7 @@ class QuorridorModel:
             if self.joueur.pos_x == 0:
                 return True
         elif player == self.adversaire:
-            if self.adversaire.pos_x == 16:
+            if self.adversaire.pos_x == self.taille-1:
                 return True
         return False
 
@@ -249,7 +259,7 @@ class Mur(ABC):
         self.y = y
         self.direction = direction
         self.longueur =3
-        self.pouvoir =1
+        self.pouvoir =0
         self.positions=[(x,y)]
         self.positions_occup()
     def positions_occup(self):
@@ -268,7 +278,7 @@ class Mur(ABC):
 class MurIncassable(Mur):
     def __init__(self,x,y,direction):
         Mur.__init__(self,x,y,direction)
-        self.pouvoir =2
+        self.pouvoir =1
 
 class MurClassique(Mur):
     def __init__(self,x,y,direction):
@@ -278,29 +288,30 @@ class MurClassique(Mur):
 class MurAvecPorte(Mur):
     def __init__(self,x,y,direction,joueur):
         Mur.__init__(self, x, y, direction)
-        self.pouvoir=5
+        self.pouvoir=3
         self.PosePar = joueur
 
 class GrandMur(Mur):
     def __init__(self,x,y,direction):
         Mur.__init__(self,x,y,direction)
         self.longueur =5
-        self.pouvoir =3
+        self.pouvoir =2
 
 class MurTemporaire(Mur):
     def __init__(self,x,y,direction,joueur):
         Mur.__init__(self, x, y, direction)
         self.pouvoir=4
-        self.temps_restant =4
+        self.temps_restant =3
 
 class Unite(ABC):
-    def __init__(self, x, y, temps_rechargement):
+    def __init__(self, x, y, temps_rechargement,model):
         self.pos_x = x
         self.pos_y = y
         self.temps_rechargement =temps_rechargement
-        self.temps = temps_rechargement
+        self.temps = 0
         self.credits = nbrPointAchatMur
         self.type ="?" #le type n'est pas encore connu, il sera modifié plus tard
+        self.model =model
 
 
 
@@ -309,73 +320,70 @@ class Unite(ABC):
         pass
 
 class UniteSapeur(Unite):
-    def __init__(self,x,y,temps_rechargement_sapeur):
-        Unite.__init__(self,x, y, temps_rechargement_sapeur)
+    def __init__(self,x,y,temps_rechargement_sapeur,model):
+        Unite.__init__(self,x, y, temps_rechargement_sapeur,model)
         self.type = "S"
 
 
 
-    def pouvoir(self,x,y,axe,player,jeu):#axe vertical ='v', horizontal ='h
-        voisin = jeu.voisin(self,x,y)
+    def pouvoir(self,x,y,player):#axe vertical ='v', horizontal ='h
+        voisin = self.model.voisin(self,x,y)
+        self.temps=0
         if (player.pos_x,player.pos_y) in voisin:#il peut utiliser son pouvoir que si il est a coté du mur
-            plateau =jeu.supprimer_mur(x,y,axe)
+            plateau =self.model.supprimer_mur(x,y)
+
             if plateau ==-1:
                 return -1
             else:
-                jeu.plateau  = plateau
-                return(plateau)
-        else:
-            return(-1) #cas si le joueur n'est pas voisin au mur
+                self.model.move_player(player,x,y)
+            #else:
+                #jeu.plateau  = plateau
+                #return(plateau)
+        #else:
+            #return(-1) #cas si le joueur n'est pas voisin au mur
 
 
 
 class UniteSprinter(Unite):
-    def __init__(self,x,y,temps_rechargement_sprinteur):
-        Unite.__init__(self,x, y, temps_rechargement_sprinteur)
+    def __init__(self,x,y,temps_rechargement_sprinteur,model):
+        Unite.__init__(self,x, y, temps_rechargement_sprinteur,model)
         self.type = "P"
 
 
 
-    def pouvoir(self,player,direction,jeu):
-        for i in range(2):
-            plateau=jeu.move_player(self, player, direction) #on se déplace de deux cases dans la meme direction,
-            return plateau
-            #les vérifications sont faits dans le presenter afin qu'il n'y ai pas d'erreur
+    def pouvoir(self,player,x,y):
+        self.temps = 0
+        dx= x-player.pos_x
+        dy=y-player.pos_y
 
+        if self.model.deplacement_legal(player,player.pos_x+dx//2,player.pos_y+dy//2)==True:
+            self.model.move_player(self, player, player.pos_x+dx//2,player.pos_y+dy//2)
+
+        if self.model.deplacement_legal(player,x,y)==True:
+            self.model.move_player(self, player, x,y)
 
 
 class UniteJumper(Unite):
-    def __init__(self,x,y,temps_rechargement_jumper):
-        Unite.__init__(self,x, y, temps_rechargement_jumper)
+    def __init__(self,x,y,temps_rechargement_jumper,model):
+        Unite.__init__(self,x, y, temps_rechargement_jumper,model)
         self.type = "J"
 
-    def pouvoir(self,player,direction,jeu):
-        #on vérifie qu'il y a bien un mur devant soit
-        obstacle=False
-        if direction ==0 or direction==2:
-            for mur in jeu.murs:
-                if (x-1,y) ==(mur.x,mur.y) or (x+1,y)==(mur.x,mur.y):
-                    obstacle=True
-                elif ((x-2, y) == (mur.x, mur.y) or (x+2, y) == (mur.x, mur.y)) and mur.longueur == 5: #cas pour le mur de longueur 5
-                    obstacle=True
-        elif direction==1 or direction==3:
-            for mur in jeu.murs:
-                if (x,y-1) ==(mur.x,mur.y) or (x,y+1)==(mur.x,mur.y):
-                    obstacle = True
-                elif ((x, y-2) == (mur.x, mur.y) or (x+2, y) == (mur.x, mur.y)) and mur.longueur == 5: #cas pour le mur de longueur 5
-                    obstacle = True
-
-
-        if obstacle : #si il y a bien un obstacle on utilise bien le pouvoir
-            jeu.move_player(player,direction)
-            return True
-        else:
-            return False
+    def pouvoir(self,player,x,y):
+        self.temps=0 #même si le mouvement est potentiellement invalide
+        self.model.move_player(player,x,y)
 
 
 
 
 
+
+
+
+
+a=QuorridorModel()
+a.murs.append(MurClassique(0,0,1))
+a.murs.append(MurIncassable(16,16,3))
+a.parametrer_set_murs()
 
 
 
