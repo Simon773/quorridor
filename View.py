@@ -67,6 +67,7 @@ class QuorridorView:
         return x,y #axe en plus ?
 
     def choix_murs(self,player):
+        print("dans la view")
         murEtCout = {0:1,1:2,2:3,3:3,4:2}
         while player.credits!=0:
             print("Vous avez le choix entre 5 murs : classique(0), incassable(1), long(2),  porte(3) et temporaire(4)")
@@ -74,6 +75,6 @@ class QuorridorView:
             while a<0 or a>4 :
                 a=int(input("quel murs souhaitez vous prendre ?"))
             nb=int(input(f'ce mur coute {murEtCout[a]} credits, combien souhaitez vous en prendre ? '))
-            while nb*murEtCout[a]>player.credits or nb*murEtCout[a]>player.credits<0:
+            while nb*murEtCout[a]>player.credits or nb*murEtCout[a]<0:
                 nb=int(input("nombre incorrecte au vu de vos credits restant (",player.credits," credits restants) veuillez en choisir un autre nombre"))
             player.murs_poss[a]=nb

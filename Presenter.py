@@ -1,7 +1,7 @@
 
 #QUESTIONS
 #pour le client actuellement le utilisation pouvoir recoit orientation, mais il ne doit pas recevoir player x et y ?
-
+#si un pouvoir est invalide ou en partie comment faire, exemple avec le sprinter qui peut avancer de seulement une case, que se passe-t-il avec le client ???
 
 import numpy as np
 tailleMap = 9
@@ -91,12 +91,15 @@ class QuorridorPresenter:
         self.view.set_presenter(self)
         self.current_player = self.model.joueur  #on ajoute une variable pour connaitre le joueur courant
         self.client = Client()
+        for i in range(12):
+            self.lien_model(i,self.current_player,i)
+        self.model.initialiser_jeu()
 
-    def lien_model(self,nb,player,x,y,direction,type_mur):
+    def lien_model(self,nb,player=None,x=None,y=None,direction=None,type_mur=None):
         if nb==1: #choix des unites
             self.model.Set_lien_presenter(self.gerer_choix_unite,1)
         elif nb==2: #choix des murs
-            self.model.Set_lien_presenter(self.choix_murs,player,2)
+            self.model.Set_lien_presenter(self.choix_murs,2)
         elif nb==3: #actualisation de la vue:
             self.model.Set_lien_presenter(self.update_view,3)
         elif nb==4: #recuper l'action choisi:
@@ -113,12 +116,13 @@ class QuorridorPresenter:
             self.model.Set_lien_presenter(self.pouvoir_sapeur,9)
         elif nb==10: #verifier que l'on peut bien réaliser le pouvoir
             self.model.Set_lien_presenter(self.verifier_utilisation_pouvoir,10,player,x,y)
+        elif nb==11: #demander ask_priority
+            self.model.Set_lien_presenter(self.verifier_utilisation_pouvoir, 11)
+
 
 
     def gerer_choix_unite(self):
-        unit_type_choice=[0,0]
-        for player in [self.model.joueur, self.model.adversaire]:
-            unit_type_choice[player] = self.view.choix_unite()
+        unit_type_choice = self.view.choix_unite()
         return unit_type_choice
 
     def update_view(self):
@@ -141,7 +145,8 @@ class QuorridorPresenter:
 
     def recuper_direction_deplacement(self):
         direction =self.view.demander_déplacement()
-        return direction
+        x,y = self.direction_en_xy(direction)
+        return x,y
 
     def verif_deplacement(self,player,x,y):
         if self.client.deplacement(player,x,y)==0:
@@ -162,6 +167,10 @@ class QuorridorPresenter:
     def choix_murs(self,player):
         mur_dispo=self.view.choix_murs(player)
         return mur_dispo
+
+    def demander_priority(self):
+        self.client.askPriority()
+
 
 
 
@@ -191,19 +200,7 @@ class QuorridorPresenter:
             self.update_view()
 
 
-
-
-    def changer_joueur(self,tour):
-        if tour==1:
-           
-            self.current_player = self.model.adversaire
-        elif tour==0:
-
-            self.current_player = self.model.joueur
-
-
-
-    def deplacement_joueur(self,direction):
+    def direction_en_xy(self,direction):
         if direction == 0:
             x, y = self.current_player.pos_x - 2, self.current_player.pos_y
         elif direction == 1:
@@ -212,12 +209,9 @@ class QuorridorPresenter:
             x, y = self.current_player.pos_x + 2, self.current_player.pos_y
         elif direction == 3:
             x, y = self.current_player.pos_x, self.current_player.pos_y - 2
-        verif_deplacement = self.client.deplacement(self.current_player, x, y)
-        if verif_deplacement != 0:
-            return False
-        else:  # si le mouvement est valide
-            self.model.move_player(self.current_player, direction)
-            return True
+        else:
+            raise ValueError
+        return x,y
 
     def verifier_victoire(self):
         verif_victoire = self.model.check_win(self.current_player)
@@ -304,22 +298,3 @@ class QuorridorPresenter:
             tour = (tour+1)%2
             self.changer_joueur(tour)
 
-
-
-
-    def lancer_jeu(self):
-
-
-        self.gerer_choix_unite()
-        self.model.init_pos()
-        self.update_view()
-        self.model.initialiser_plateau()
-        #self.model.liste_pos_place_mur()
-        #self.model.get_state()
-
-        # Affiche l'état initial du jeu
-        #self.update_view()
-
-        #self.gerer_input()
-
-        #self.lancer_boucle()
