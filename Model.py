@@ -54,7 +54,7 @@ class QuorridorModel:
         self.actualiser_vue()
         for player in [self.joueur,self.adversaire]:
             player.murs_poss=self.choix_mur(player)
-            print(player.murs_poss)
+
 
         self.current_player=self.joueur
         tour=0
@@ -64,20 +64,22 @@ class QuorridorModel:
                 self.current_player.temps+=1
             action= self.choix_action()
             if action ==1:
-                dx,dy=self.choix_deplacement(self.current_player)
-                x,y = self.current_player.pos_x+dx,self.current_player.pos_y+dy
+                x,y=self.choix_deplacement(self.current_player)
                 while not self.deplacement_legal(self.current_player,x,y):
-                    dx,dy=self.choix_deplacement(self.current_player)
-                    x, y = self.current_player.pos_x + dx, self.current_player.pos_y + dy
+                    #print("bloqué dans le déplacement ?")
+                    x,y=self.choix_deplacement(self.current_player)
                 if self.verif_deplacement(self.current_player,x,y):
                     self.move_player(self.current_player,x,y)
             elif action ==2:
-                direction, type_mur, x, y=self.choix_placement_mur()
-                while not self.placement_mur_legal(x,y,direction):
-                    direction, type_mur, x, y = self.choix_placement_mur()
+                direction, type_mur, x, y=self.choix_placement_mur(self.current_player)
+                while not self.placement_mur_legal(x,y,direction,type_mur,self.current_player):
+                    #print("bloqué dans le placement mur")
+                    direction, type_mur, x, y = self.choix_placement_mur(self.current_player)
                 if self.verif_mur(type_mur,x,y,direction):
                     self.placer_mur(self.current_player,type_mur,x,y,direction)
                     self.parametrer_set_murs()
+                    self.current_player.murs_poss[type_mur]-=1
+                    print(self.current_player.murs_poss)
 
 
             elif action ==3:
@@ -145,6 +147,8 @@ class QuorridorModel:
     def choix_deplacement(self,player):
         pass
 
+    def choix_placement_mur(self,player):
+        pass
     def Set_lien_presenter(self,function,nb):
         if nb==1:
             self.choix_unite = partial(function)
@@ -214,8 +218,7 @@ class QuorridorModel:
         #liste des positions où l'on peut placer des murs afin de couvrir 2 cases de joueurs (dans le cas inverse cela couvre seulement une case de joueur)
         return [(i, j) for i in range(tailleMap) for j in range(tailleMap) if (i % 2 == 1) != (j % 2 == 1)]
 
-    def placement_mur_legal(self,x,y,direction):
-        return True
+
     def move_player(self, player,x,y):
         if player == self.joueur:
             self.plateau[self.joueur.pos_x][self.joueur.pos_y] = -1
@@ -235,6 +238,36 @@ class QuorridorModel:
 
             self.current_player = self.joueur
 
+    def verification_limite_plateai(self,x,y):
+        if x<self.taille and x>=0:
+            if y<self.taille and y>=0:
+                return True
+        else:
+            return False
+    def placement_mur_legal(self,x,y,direction,wall_type,player):
+        #on vérifie que chaque partie du mur ne dépasse pas les limites du plateau
+        if wall_type==2:
+            longueur=5
+        else:
+            longueur =3
+        for i in range(longueur):
+            if direction ==0:
+                newx,newy=x-i,y
+            elif direction ==1:
+                newx, newy = x, y+i
+            elif direction ==2:
+                newx, newy = x + i, y
+            elif direction ==3:
+                newx, newy = x, y-i
+            else:
+                print("direction incorrecte")
+                raise ValueError
+            if not self.verification_limite_plateai(newx,newy):
+                return False
+            if self.plateau[newx][newy]!=-2:
+                return False
+        if player.murs_poss[wall_type]!=0:
+            return True
     def placer_mur(self, player,type_mur, x, y, orientation):
         if type_mur==0:
             new_wall = MurClassique(x, y, orientation)
@@ -258,6 +291,19 @@ class QuorridorModel:
             mur = self.positions_murs[(x,y)]
             del self.positions_murs[(x,y)]
             self.murs.remove(mur)
+
+    def direction_en_xy(self,direction,player):
+        if direction == 0:
+            x, y = player.pos_x - 2, player.pos_y
+        elif direction == 1:
+            x, y = player.pos_x, player.pos_y + 2
+        elif direction == 2:
+            x, y = player.pos_x + 2, player.pos_y
+        elif direction == 3:
+            x, y = player.pos_x, player.pos_y - 2
+        else:
+            raise ValueError
+        return x,y
 
 
 
@@ -306,7 +352,7 @@ class QuorridorModel:
         elif y>player.pos_y and x==player.pos_x:
             direction=1
         else:
-            raise ValueError("il n'y a pas de changement de position du joueur ou changement en diagonale")
+            return False
         if direction ==0:
             if player.pos_x ==0:
                 return False
@@ -356,30 +402,42 @@ class QuorridorModel:
             directions = [0, 0, 0, 0, 0, 2, 2, 1, 1, 3, 3]
         else:  # si cest l'adversaire
             directions = [2, 2, 2, 2, 2, 2, 0, 1, 1, 3, 3]
+        while True:
+            #print("bloqué dans le déplacement aléatoire")
+            direction =random.choice(directions)
+            x,y=self.direction_en_xy(direction,player)
+            if self.deplacement_legal(player,x,y):
+                return direction
+
+    def mur_aleatoire(self,player):
+        while True:
+            #print("bloqué dans le mur aléatoire")
+            wall_types = []
+            for i in range(5):
+                if player.murs_poss[i]!=0:
+                    wall_types.append(i)
 
 
-        return random.choice(directions)
+            wall_type = random.choice(wall_types)
 
-    def mur_aleatoire(self):
-        # Type de mur
-        wall_types = [0,1, 2, 3, 4]
-        wall_type = random.choice(wall_types)
+            # On utilise la fonction listepospacemur pour tirer les coords
+            possible_positions = self.liste_pos_place_mur()
+            position = random.choice(possible_positions)
+            x, y = position
 
-        # On utilise la fonction listepospacemur pour tirer les coords
-        possible_positions = self.liste_pos_place_mur()
-        position = random.choice(possible_positions)
-        x, y = position
+            # orientation
+            orientations = [0, 1, 2, 3]
+            orientation = random.choice(orientations)
+            if self.placement_mur_legal(x,y,orientation,wall_type,player):
+                return orientation, wall_type, x, y
 
-        # orientation
-        orientations = [0, 1, 2, 3]
-        orientation = random.choice(orientations)
 
-        return orientation,wall_type, x, y
+
+
 
 ############################################################
 #Classes pour les unités et les murs
 ############################################################
-#pour les murs, 0 classique, 1
 class Mur(ABC):
     def __init__(self, x, y, direction):
         self.x = x

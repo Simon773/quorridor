@@ -135,9 +135,9 @@ class QuorridorPresenter:
         state = self.model.get_state()
         self.view.display(*state)
 
-    def recup_placement_mur(self):
+    def recup_placement_mur(self,player):
         if self.bot:
-            direction,type,x,y = self.model.mur_aleatoire()
+            direction,type,x,y = self.model.mur_aleatoire(player)
         else:
             direction, type, x, y = self.view.demander_placement_mur()
         return direction,type,x,y
@@ -160,7 +160,7 @@ class QuorridorPresenter:
             direction=self.model.deplacement_aleatoire(player)
         else:
             direction =self.view.demander_déplacement()
-        x,y = self.direction_en_xy(direction)
+        x,y = self.model.direction_en_xy(direction,player)
         return x,y
 
     def verif_deplacement(self,player,x,y):
@@ -184,17 +184,5 @@ class QuorridorPresenter:
         return mur_dispo
 
 
-    def direction_en_xy(self,direction):
-        if direction == 0:
-            x, y = self.current_player.pos_x - 2, self.current_player.pos_y
-        elif direction == 1:
-            x, y = self.current_player.pos_x, self.current_player.pos_y + 2
-        elif direction == 2:
-            x, y = self.current_player.pos_x + 2, self.current_player.pos_y
-        elif direction == 3:
-            x, y = self.current_player.pos_x, self.current_player.pos_y - 2
-        else:
-            raise ValueError
-        return x,y
 
 
