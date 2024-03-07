@@ -1,7 +1,7 @@
 
 #QUESTIONS
 #pour le client actuellement le utilisation pouvoir recoit orientation, mais il ne doit pas recevoir player x et y ?
-
+#si un pouvoir est invalide ou en partie comment faire, exemple avec le sprinter qui peut avancer de seulement une case, que se passe-t-il avec le client ???
 
 import numpy as np
 tailleMap = 9
@@ -49,7 +49,7 @@ class Client:
     # "pause" tant que l'autre joueur est en train de jouer
     def askPriority(self):
         # Temps d'attente en seconde
-        time.sleep(1)
+        time.sleep(0.5)
         # Renvoi une matrice contenant les cases du jeu.
         return matriceVide
 
@@ -79,24 +79,27 @@ class Client:
     # Sauter par dessus
     # return 0 si ok
     # code erreur 1:pouvoir en rechargement  10:mauvais input
-    def utilisationPouvoir(self, orientation):
-        if isinstance(orientation, int):
-            raise TypeError()
+    def utilisationPouvoir(self, player,x,y):
+
         return 0
 
 class QuorridorPresenter:
     def __init__(self, model, view):
         self.model = model
         self.view = view
-        self.view.set_presenter(self)
         self.current_player = self.model.joueur  #on ajoute une variable pour connaitre le joueur courant
         self.client = Client()
+        self.bot =None
+        self.mode_de_jeux()
+        for i in range(12):
+            self.lien_model(i)
+        self.model.initialiser_jeu()
 
-    def lien_model(self,nb,player,x,y,direction,type_mur):
+    def lien_model(self,nb):
         if nb==1: #choix des unites
             self.model.Set_lien_presenter(self.gerer_choix_unite,1)
         elif nb==2: #choix des murs
-            self.model.Set_lien_presenter(self.choix_murs,player,2)
+            self.model.Set_lien_presenter(self.choix_murs,2)
         elif nb==3: #actualisation de la vue:
             self.model.Set_lien_presenter(self.update_view,3)
         elif nb==4: #recuper l'action choisi:
@@ -104,29 +107,37 @@ class QuorridorPresenter:
         elif nb==5: #recuper le placement d'un mur:
             self.model.Set_lien_presenter(self.recup_placement_mur,5)
         elif nb==6: #Verifier le placement d'un mur:
-            self.model.Set_lien_presenter(self.verif_placement_mur,6,type_mur,x,y,direction)
+            self.model.Set_lien_presenter(self.verif_placement_mur,6)
         elif nb==7: #recuperer direction du déplacement
             self.model.Set_lien_presenter(self.recuper_direction_deplacement,7)
         elif nb==8: #verifier le deplacement
-            self.model.Set_lien_presenter(self.verif_deplacement,8,player,x,y)
+            self.model.Set_lien_presenter(self.verif_deplacement,8)
         elif nb==9: #demander la case à détruire pour le sapeur
             self.model.Set_lien_presenter(self.pouvoir_sapeur,9)
         elif nb==10: #verifier que l'on peut bien réaliser le pouvoir
-            self.model.Set_lien_presenter(self.verifier_utilisation_pouvoir,10,player,x,y)
+            self.model.Set_lien_presenter(self.verifier_utilisation_pouvoir,10)
+        elif nb==11: #demander ask_priority
+            self.model.Set_lien_presenter(self.client.askPriority, 11)
 
 
+    def mode_de_jeux(self):
+        if self.view.demander_mode_jeu()==True:
+            self.bot= True
+        else:
+            self.bot = False
     def gerer_choix_unite(self):
-        unit_type_choice=[0,0]
-        for player in [self.model.joueur, self.model.adversaire]:
-            unit_type_choice[player] = self.view.choix_unite()
+        unit_type_choice = self.view.choix_unite()
         return unit_type_choice
 
     def update_view(self):
         state = self.model.get_state()
         self.view.display(*state)
 
-    def recup_placement_mur(self):
-        direction, type, x, y = self.view.demander_placement_mur()
+    def recup_placement_mur(self,player):
+        if self.bot:
+            direction,type,x,y = self.model.mur_aleatoire(player)
+        else:
+            direction, type, x, y = self.view.demander_placement_mur(player)
         return direction,type,x,y
 
     def verif_placement_mur(self,type_mur,x,y,direction):
@@ -136,12 +147,20 @@ class QuorridorPresenter:
             return False
 
     def recuperer_action(self):
-        mouvement = self.view.get_input()
+        print(self.bot)
+        if self.bot:
+            mouvement= self.model.choix_action_aleatoire()
+        else:
+            mouvement = self.view.get_input()
         return mouvement
 
-    def recuper_direction_deplacement(self):
-        direction =self.view.demander_déplacement()
-        return direction
+    def recuper_direction_deplacement(self,player):
+        if self.bot:
+            direction=self.model.deplacement_aleatoire(player)
+        else:
+            direction =self.view.demander_déplacement()
+        x,y = self.model.direction_en_xy(direction,player)
+        return x,y
 
     def verif_deplacement(self,player,x,y):
         if self.client.deplacement(player,x,y)==0:
@@ -164,162 +183,3 @@ class QuorridorPresenter:
         return mur_dispo
 
 
-
-
-
-
-    def gerer_input(self): #pas utile dans la boucle de jeu mais nous permet de tester nos fonctions
-        while True:
-            mouvement = self.view.get_input()
-            if mouvement==1:
-                direction = self.view.demander_direction()
-                self.model.move_player(self.model.joueur, direction)
-            elif mouvement==2:
-                orientation = self.view.demander_direction()
-                x,y = self.view.demander_coordonnes()
-                type = self.view.demander_type_mur()
-                self.model.placer_mur(self.model.joueur, type, x, y, orientation)
-
-            elif mouvement==3:
-                if self.model.joueur.type=="S":
-                    axe,x,y=self.view.demander_pvSapeur()
-                    pouvoir =-1
-                    while pouvoir ==-1:
-                        pouvoir =self.model.joueur.pouvoir(x,y,axe,self.model.joueur,self.model)
-                else:
-                    pass
-            self.update_view()
-
-
-
-
-    def changer_joueur(self,tour):
-        if tour==1:
-           
-            self.current_player = self.model.adversaire
-        elif tour==0:
-
-            self.current_player = self.model.joueur
-
-
-
-    def deplacement_joueur(self,direction):
-        if direction == 0:
-            x, y = self.current_player.pos_x - 2, self.current_player.pos_y
-        elif direction == 1:
-            x, y = self.current_player.pos_x, self.current_player.pos_y + 2
-        elif direction == 2:
-            x, y = self.current_player.pos_x + 2, self.current_player.pos_y
-        elif direction == 3:
-            x, y = self.current_player.pos_x, self.current_player.pos_y - 2
-        verif_deplacement = self.client.deplacement(self.current_player, x, y)
-        if verif_deplacement != 0:
-            return False
-        else:  # si le mouvement est valide
-            self.model.move_player(self.current_player, direction)
-            return True
-
-    def verifier_victoire(self):
-        verif_victoire = self.model.check_win(self.current_player)
-
-        if verif_victoire == True:
-            print("le joueur", self.current_player, " a gagné")
-            return True
-        else:
-            return False
-
-
-
-
-
-
-
-    def deplacer_player_aléatoire(self,):
-        while True:  # tant que le déplacement n'est pas fait:
-            direction = self.model.deplacement_aleatoire(self.current_player)
-            if direction == 0:
-                x, y = self.current_player.pos_x - 2, self.current_player.pos_y
-            elif direction == 1:
-                x, y = self.current_player.pos_x, self.current_player.pos_y + 2
-            elif direction == 2:
-                x, y = self.current_player.pos_x + 2, self.current_player.pos_y
-            elif direction == 3:
-                x, y = self.current_player.pos_x, self.current_player.pos_y - 2
-            verif_deplacement = self.client.deplacement(self.current_player, x, y)
-
-            if verif_deplacement != 0:
-                print("Mouvement impossible, il y a une erreur, un mur sur le passage, une sortie de terrain ou un mauvais input()")
-            else:  # si le mouvement est valide
-                self.model.move_player(self.current_player, direction)
-                break
-    def placer_mur_aléatoire(self): #dans le cas ou c'est le bot qui joue, celui ci récupére les informations de déplacement, les vérifie dans le client et exécute
-        while True:
-            type_mur, x, y, orientation = self.model.mur_aleatoire()
-            if self.client.placementMur(self.current_player, type_mur, x, y,
-                                        orientation) == 0:  # si le placement est possible
-                self.model.placer_mur(self.current_player, type_mur, x, y, orientation)
-                break
-
-
-    def lancer_boucle(self):
-        tour = 1
-        while True:
-            action = self.model.choix_action()
-            if action ==1:
-                while True: #tant que le déplacement n'est pas fait:
-                    direction = self.model.deplacement_aleatoire(self.current_player)
-                    if direction ==0:
-                        x,y= self.current_player.pos_x-2,self.current_player.pos_y
-                    elif direction ==1:
-                        x, y = self.current_player.pos_x, self.current_player.pos_y+2
-                    elif direction ==2:
-                        x, y = self.current_player.pos_x+2, self.current_player.pos_y
-                    elif direction ==3:
-                        x, y = self.current_player.pos_x, self.current_player.pos_y-2
-                    verif_deplacement = self.client.deplacement(self.current_player,x,y)
-                    print(x,y)
-                    if verif_deplacement !=0:
-                        print("Mouvement impossible, il y a une erreur, un mur sur le passage, une sortie de terrain ou un mauvais input()")
-                    else: #si le mouvement est valide
-                        self.model.move_player(self.current_player,direction)
-                        break
-            elif action ==2:
-                while True:
-                    # placementMur(self, joueur : str, typeMur:int , positionX:int, positionY:int, orientation: int):
-                    #print(self.client.placementMur(self.model.joueur,1,10,10,1))
-                    type_mur,x,y,orientation = self.model.mur_aleatoire()
-                    if self.client.placementMur(self.current_player,type_mur,x,y,orientation)==0: #si le placement est possible
-                        self.model.placer_mur(self.current_player,type_mur,x,y,orientation)
-                        break
-
-            verif_victoire=self.model.check_win(self.current_player)
-            print(verif_victoire)
-            if verif_victoire==True:
-                print("le joueur",self.current_player," a gagné")
-                break
-
-            self.update_view()
-
-            self.client.askPriority()
-            tour = (tour+1)%2
-            self.changer_joueur(tour)
-
-
-
-
-    def lancer_jeu(self):
-
-
-        self.gerer_choix_unite()
-        self.model.init_pos()
-        self.update_view()
-        self.model.initialiser_plateau()
-        #self.model.liste_pos_place_mur()
-        #self.model.get_state()
-
-        # Affiche l'état initial du jeu
-        #self.update_view()
-
-        #self.gerer_input()
-
-        #self.lancer_boucle()
