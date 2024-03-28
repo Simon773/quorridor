@@ -7,7 +7,7 @@ class QuorridorView:
 
         self.mode_jeu = tkinter.BooleanVar(self.root)
         self.unite_choisie = tkinter.StringVar(self.root)
-        self.choix_nom_equipe = tkinter.StringVar(self.root)
+        self.choix_nom_equipe= tkinter.StringVar(self.root)
 
         self.root.geometry("600x600")
         self.canvas = tkinter.Canvas(self.root, width=500, height=500)
@@ -24,15 +24,13 @@ class QuorridorView:
         label_jeu.grid(row=0, column=1)
 
         demander_equipe_entry = tkinter.Entry(self.root, text="INTRODUIRE NOM DE L'EQUIPE")
-        nom_equipe_button = tkinter.Button(self.root, text="Bot Mode",
-                                         command=lambda: [ nom_equipe_button.destroy(),
-                                                          label_jeu.destroy()], height=2, width=20)
-
         demander_equipe_entry.grid(row=0, column=2)
-
+        nom_equipe_button = tkinter.Button(self.root, text="Valider",
+                                         command=lambda: [ self.choix_nom_equipe.set(demander_equipe_entry.get()),
+                                                           nom_equipe_button.destroy(), label_jeu.destroy(),demander_equipe_entry.destroy() ], height=2,width=20)
+        nom_equipe_button.grid(row=1, column=2)
         self.root.wait_variable(self.choix_nom_equipe)
-        nom_equipe=demander_equipe_entry.get()
-        return nom_equipe
+        return self.choix_nom_equipe.get( )
 
 
 

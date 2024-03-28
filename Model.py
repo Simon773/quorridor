@@ -112,6 +112,7 @@ class QuorridorModel:
             self.attribuer_type_unite(player, unit_type)
             nom=self.demander_nom_equipe(player)
             player.nom_joueur=nom
+            print(player.nom_joueur)
         self.init_pos()
         self.initialiser_plateau()
         self.actualiser_vue()
